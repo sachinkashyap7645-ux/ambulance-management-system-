@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#070b14] text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Command Console | PulseCare India</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS for Interactive Fleet Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Shared Engine Script -->
+  <script src="shared.js"></script>
+
+  <!-- AUTH GUARD: CHECK LOGIN BEFORE RENDERING -->
+  <script>
+    const currentOfficer = PulseCare.requireAdminAuth();
+  </script>
+</head>
+<body class="h-full flex flex-col font-sans bg-[#070b14] text-slate-100 selection:bg-rose-500 selection:text-white">
+
+  <!-- TOP BAR -->
+  <header class="sticky top-0 z-40 bg-[#090d16]/95 backdrop-blur-md border-b border-slate-800 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        
+        <!-- Brand Logo & Badge -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center shadow-lg shadow-rose-600/20 text-white font-bold text-xl">
+            ✚
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="font-bold text-lg text-white">PulseCare Command</span>
+              <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/30 font-mono">Restricted</span>
+            </div>
+            <p class="text-[11px] text-slate-400 font-medium hidden sm:block">Private Emergency Operations & Dispatch Console</p>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="hidden md:flex items-center space-x-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+          <button id="tab-queue" onclick="adminApp.switchTab('queue')" class="nav-tab active px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 text-white bg-rose-600 shadow-sm">
+            <span>🚨</span>
+            <span>Dispatch Queue</span>
+            <span id="pendingBadge" class="hidden ml-1 px-1.5 py-0.2 rounded-full bg-slate-900 text-rose-300 text-[10px] font-bold">0</span>
+          </button>
+          <button id="tab-fleet" onclick="adminApp.switchTab('fleet')" class="nav-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 text-slate-300 hover:text-white hover:bg-slate-800">
+            <span>🚑</span>
+            <span>Fleet Depots</span>
+          </button>
+          <button id="tab-hospitals" onclick="adminApp.switchTab('hospitals')" class="nav-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 text-slate-300 hover:text-white hover:bg-slate-800">
+            <span>🏥</span>
+            <span>Hospital ICU Beds</span>
+          </button>
+          <button id="tab-audit" onclick="adminApp.switchTab('audit')" class="nav-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 text-slate-300 hover:text-white hover:bg-slate-800">
+            <span>📋</span>
+            <span>Assignment Audit Log</span>
+          </button>
+          <button id="tab-map" onclick="adminApp.switchTab('map')" class="nav-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 text-slate-300 hover:text-white hover:bg-slate-800">
+            <span>🗺️</span>
+            <span>Live Radar</span>
+          </button>
+        </nav>
+
+        <!-- Right Side: Active Officer Profile & Sign Out -->
+       <style>.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: #dc2626;
+  letter-spacing: -0.3px;
+}
+
+.city-select {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #f9fafb;
+  cursor: pointer;
+}
+
+.helpline-btn {
+  background: #dc2626;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.signin-btn {
+  color: #374151;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}</style>
+        <nav class="navbar">
+  <div class="nav-left">
+    <span class="logo">PulseCare India</span>
+  </div>
+  <div class="nav-center">
+    <select class="city-select" id="citySelect">
+      <option>Delhi NCR</option>
+      <option>Bengaluru</option>
+      <option>Mumbai</option>
+      <option>Hyderabad</option>
+      <option>Kolkata</option>
+    </select>
+  </div>
+  <div class="nav-right">
+    <a href="tel:18002009110" class="helpline-btn">+91 1800-200-9110</a>
+    <a href="/login" class="signin-btn">Officer Sign-In</a>
+  </div>
+</nav>
+
+          <!-- Authenticated Officer Badge -->
+          <div class="flex items-center space-x-2.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+            <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-xs font-bold text-white uppercase" id="officerAvatar">
+              --
+            </div>
+            <div class="text-left hidden lg:block">
+              <div class="text-xs font-bold text-white leading-tight" id="officerNameDisplay">Loading...</div>
+              <div class="text-[10px] text-cyan-400 font-mono" id="officerIdDisplay">PULSE-DIR-101</div>
+            </div>
+          </div>
+
+          <!-- Sign Out Button -->
+          <button onclick="PulseCare.logout()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-rose-400 border border-slate-700 transition flex items-center space-x-1">
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN OPERATING CONSOLE -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Officer Duty Status Banner -->
+    <div class="bg-slate-900/90 p-5 rounded-2xl border border-slate-800 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-center space-x-4">
+        <div class="w-12 h-12 rounded-xl bg-cyan-600/15 border border-cyan-500/25 flex items-center justify-center text-2xl text-cyan-400">
+          🛡️
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h2 class="text-xl font-bold text-white">Critical Care Dispatch Command Desk</h2>
+            <span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-bold uppercase">Session Active</span>
+          </div>
+          <p class="text-xs text-slate-300 mt-0.5">
+            Signing Officer on Duty: <strong id="dutyOfficerName" class="text-cyan-300">--</strong> 
+            (<span id="dutyOfficerRole">--</span> | <span id="dutyOfficerBadge" class="font-mono text-slate-400">--</span>)
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <span class="text-xs text-slate-400">Active Operational Hub: <strong class="current-city-label text-rose-400">Delhi NCR</strong></span>
+        <button onclick="adminApp.openAddAmbulanceModal()" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow ml-2 flex items-center space-x-1 transition">
+          <span>+ Add Unit</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Stat Metric Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 shadow">
+        <div class="text-xs font-medium text-slate-400">Total Fleet (City)</div>
+        <div id="statTotalFleet" class="text-2xl font-black text-white mt-1">7</div>
+        <div class="text-[11px] text-slate-500 mt-1">Certified units</div>
+      </div>
+      <div class="bg-slate-900/90 p-4 rounded-xl border border-emerald-900/30 shadow">
+        <div class="text-xs font-medium text-emerald-400">Available Ready</div>
+        <div id="statAvailableFleet" class="text-2xl font-black text-emerald-400 mt-1">5</div>
+        <div class="text-[11px] text-slate-500 mt-1">Standby at base</div>
+      </div>
+      <div class="bg-slate-900/90 p-4 rounded-xl border border-amber-900/30 shadow">
+        <div class="text-xs font-medium text-amber-400">Active Dispatches</div>
+        <div id="statActiveDispatches" class="text-2xl font-black text-amber-400 mt-1">2</div>
+        <div class="text-[11px] text-slate-500 mt-1">En route or on scene</div>
+      </div>
+      <div class="bg-slate-900/90 p-4 rounded-xl border border-rose-900/30 shadow">
+        <div class="text-xs font-medium text-rose-400">Pending Calls</div>
+        <div id="statPendingRequests" class="text-2xl font-black text-rose-400 mt-1">1</div>
+        <div class="text-[11px] text-slate-500 mt-1">Needs assignment</div>
+      </div>
+      <div class="col-span-2 lg:col-span-1 bg-slate-900/90 p-4 rounded-xl border border-cyan-900/30 shadow">
+        <div class="text-xs font-medium text-cyan-400">Assigned by You</div>
+        <div id="statOfficerAssignments" class="text-2xl font-black text-cyan-300 mt-1">0</div>
+        <div class="text-[11px] text-slate-500 mt-1">By this active officer</div>
+      </div>
+    </div>
+
+    <!-- TAB CONTENT 1: DISPATCH QUEUE -->
+    <section id="panel-queue" class="tab-panel space-y-4">
+      <div class="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+            <h3 class="font-bold text-white text-base">Incoming Emergency Calls Queue</h3>
+          </div>
+          <span class="text-xs text-slate-400">Click <span class="font-semibold text-rose-400">"Assign Ambulance"</span> to allocate vehicle & stamp your officer name</span>
+        </div>
+
+        <div id="pendingRequestsContainer" class="divide-y divide-slate-800">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB CONTENT 2: FLEET MANAGEMENT -->
+    <section id="panel-fleet" class="tab-panel hidden space-y-4">
+      <div class="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h3 class="font-bold text-white text-base flex items-center space-x-2">
+              <span>🚑</span>
+              <span>PulseCare Fleet Depots & Standby Status</span>
+            </h3>
+            <p class="text-xs text-slate-400">Mobile ICUs, driver phone, and clinical equipment in <span class="current-city-label text-rose-400">Delhi NCR</span></p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <select id="fleetStatusFilter" onchange="adminApp.renderFleetGrid()" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none cursor-pointer">
+              <option value="ALL">All Statuses</option>
+              <option value="AVAILABLE">Available Only</option>
+              <option value="DISPATCHED">Dispatched / En Route</option>
+              <option value="ON_SCENE">On Scene</option>
+              <option value="MAINTENANCE">In Maintenance</option>
+              <option value="OUT_OF_SERVICE">Out of Service</option>
+            </select>
+            <button onclick="adminApp.openAddAmbulanceModal()" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white flex items-center space-x-1 shadow-sm transition">
+              <span>➕</span>
+              <span>Add Unit</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="fleetGridContainer" class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB CONTENT 3: PARTNER HOSPITALS & ICU MATRIX -->
+    <section id="panel-hospitals" class="tab-panel hidden space-y-4">
+      <div class="bg-slate-900/90 p-6 rounded-2xl border border-slate-800 shadow-xl">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+          <div>
+            <h3 class="font-bold text-white text-base">Partner Tertiary Hospitals Bed & Oxygen Matrix</h3>
+            <p class="text-xs text-slate-400">Real-time ICU and ventilator capacity in <span class="current-city-label text-rose-400">Delhi NCR</span></p>
+          </div>
+          <button onclick="adminApp.refreshHospitalBedData()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition">
+            🔄 Refresh Beds
+          </button>
+        </div>
+        <div id="hospitalGridContainer" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB CONTENT 4: ASSIGNMENT AUDIT LOG (THE CORE REQUIREMENT) -->
+    <section id="panel-audit" class="tab-panel hidden space-y-4">
+      <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-xs font-mono font-bold uppercase">
+                Officer Assignment Registry
+              </span>
+              <span class="text-xs text-slate-400">Tamper-Evident Local Store</span>
+            </div>
+            <h2 class="text-2xl font-black text-white mt-1">Ambulance Assignment Audit Trail</h2>
+            <p class="text-xs sm:text-sm text-slate-300 mt-1 max-w-3xl">
+              Permanently records <strong>the exact name, officer ID, and role of the admin who assigned each ambulance</strong> to patient calls.
+            </p>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <button onclick="adminApp.exportAuditCSV()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-white flex items-center space-x-1.5 transition">
+              <span>📄</span>
+              <span>Export CSV</span>
+            </button>
+            <button onclick="adminApp.exportAuditJSON()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-white flex items-center space-x-1.5 transition">
+              <span>💾</span>
+              <span>Export JSON</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Search Patient, Unit #, or Phone</label>
+            <input type="text" id="auditSearchInput" oninput="adminApp.renderAuditTable()" placeholder="Type name, vehicle reg..." class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Filter by Officer Who Assigned</label>
+            <select id="auditAdminFilter" onchange="adminApp.renderAuditTable()" class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none">
+              <option value="ALL">All Officers</option>
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Filter by Status</label>
+            <select id="auditStatusFilter" onchange="adminApp.renderAuditTable()" class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none">
+              <option value="ALL">All Statuses</option>
+              <option value="ASSIGNED">Assigned</option>
+              <option value="DISPATCHED">Dispatched / En Route</option>
+              <option value="ON_SCENE">On Scene</option>
+              <option value="COMPLETED">Completed</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-850 text-slate-400 uppercase font-mono tracking-wider border-b border-slate-800">
+              <tr>
+                <th class="px-4 py-3.5">Req # / Date</th>
+                <th class="px-4 py-3.5">Patient / City</th>
+                <th class="px-4 py-3.5">Clinical Vitals</th>
+                <th class="px-4 py-3.5">Assigned Unit</th>
+                <th class="px-4 py-3.5 text-cyan-300 font-black">
+                  <div class="flex items-center space-x-1">
+                    <span>🛡️</span>
+                    <span>ASSIGNED BY OFFICER</span>
+                  </div>
+                </th>
+                <th class="px-4 py-3.5">Hospital & Status</th>
+                <th class="px-4 py-3.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody" class="divide-y divide-slate-800 font-sans">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB CONTENT 5: LIVE RADAR MAP WITH WEATHER TELEMETRY -->
+    <section id="panel-map" class="tab-panel hidden space-y-4">
+      <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+        
+        <!-- Live City Operational Weather & Radar Control Bar -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 rounded-xl bg-slate-950/80 border border-slate-800/90 shadow-inner">
+          <div class="flex items-center space-x-3.5">
+            <div id="adminWeatherIcon" class="text-3xl p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center">⛅</div>
+            <div>
+              <div class="flex items-center space-x-2.5 flex-wrap">
+                <h4 id="adminWeatherCity" class="text-sm font-bold text-white">Delhi NCR</h4>
+                <span id="adminWeatherTemp" class="text-lg font-black text-cyan-400 font-mono">29°C</span>
+                <span id="adminWeatherCondition" class="text-xs text-slate-300 font-semibold px-2 py-0.5 rounded bg-slate-800/80 border border-slate-700">Partly Cloudy</span>
+              </div>
+              <div class="flex items-center space-x-3 text-[11px] text-slate-400 mt-1">
+                <span>💧 Humidity: <b id="adminWeatherHumidity" class="text-slate-200 font-mono">64%</b></span>
+                <span>💨 Wind: <b id="adminWeatherWind" class="text-slate-200 font-mono">11 km/h</b></span>
+                <span id="adminWeatherPrecip" class="text-cyan-400 font-semibold">🌧️ Precip: 0 mm</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Road Status & Dispatch Advisory Badge -->
+            <div id="adminRoadStatusBadge" class="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center space-x-1.5 bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
+              <span id="adminRoadStatusIcon">🟢</span>
+              <span id="adminRoadStatusText">Dry Roads • Optimal Speeds</span>
+            </div>
+
+            <!-- Precipitation Radar Toggle Button -->
+            <button id="btnToggleRadar" onclick="adminApp.toggleRadarOverlay()" class="px-3.5 py-1.5 rounded-lg text-xs font-bold border border-slate-700 bg-slate-800 text-slate-200 hover:text-white hover:border-cyan-500 transition-all flex items-center space-x-1.5 shadow-sm">
+              <span class="radar-live-dot hidden" id="radarActiveDot"></span>
+              <span>🌧️ Precipitation Radar</span>
+              <span id="radarStateText" class="text-[10px] text-slate-400 font-mono">OFF</span>
+            </button>
+
+            <!-- Refresh Button -->
+            <button onclick="adminApp.loadCityWeather(true)" title="Refresh Weather Telemetry" class="p-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:border-slate-500 transition-all text-xs">
+              🔄
+            </button>
+          </div>
+        </div>
+
+        <!-- Leaflet Map Container -->
+        <div class="relative w-full h-[520px] rounded-xl overflow-hidden border border-slate-800">
+          <div id="fleetMap" class="w-full h-full z-0"></div>
+
+          <!-- Floating Map HUD Overlay -->
+          <div id="adminMapWeatherHud" class="weather-map-hud absolute top-3 right-3 z-[400] p-3 rounded-xl max-w-xs text-xs space-y-1.5 pointer-events-auto shadow-2xl">
+            <div class="flex items-center justify-between text-[11px] border-b border-slate-700/60 pb-1.5">
+              <span class="font-bold text-slate-200 flex items-center space-x-1">
+                <span class="text-cyan-400">📡</span>
+                <span>METEOROLOGICAL RADAR</span>
+              </span>
+              <span id="hudCityBadge" class="text-[10px] font-mono text-slate-400 uppercase">DELHI</span>
+            </div>
+            <div class="flex items-center justify-between pt-0.5">
+              <span id="hudTempCondition" class="text-sm font-bold text-white">29°C ⛅ Partly Cloudy</span>
+            </div>
+            <p id="hudTransitAdvisory" class="text-[10px] text-slate-300 leading-tight">
+              Road condition optimal. Standard emergency corridor travel speeds approved.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ASSIGNMENT MODAL (STAMPS LOGGED IN ADMIN NAME) -->
+  <dialog id="assignmentModal" class="p-0 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl text-slate-100 max-w-2xl w-full backdrop:bg-slate-950/80 backdrop:backdrop-blur-sm">
+    <div class="p-6 space-y-6">
+      
+      <div class="flex items-start justify-between pb-4 border-b border-slate-800">
+        <div>
+          <div class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-300 text-[11px] font-bold uppercase tracking-wider mb-1">
+            <span>🚨</span>
+            <span>PulseCare Dispatch Protocol</span>
+          </div>
+          <h3 class="text-xl font-bold text-white">Assign Ambulance to Patient</h3>
+          <p class="text-xs text-slate-400">Allocate certified unit and stamp official officer credentials</p>
+        </div>
+        <button onclick="document.getElementById('assignmentModal').close()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+      </div>
+
+      <!-- ADMIN ATTRIBUTION HIGHLIGHT BOX -->
+      <div class="p-4 rounded-xl bg-gradient-to-r from-cyan-950/40 via-slate-850 to-blue-950/40 border border-cyan-500/30">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-full bg-cyan-600 flex items-center justify-center text-white text-base font-black shadow">
+            🛡️
+          </div>
+          <div>
+            <div class="text-[11px] font-bold text-cyan-400 uppercase tracking-wider">Signing Dispatch Officer (Recorded in Audit Trail)</div>
+            <div class="text-base font-bold text-white">
+              <span id="modalAdminName">--</span> 
+              <span id="modalAdminBadge" class="ml-1.5 text-xs font-mono font-bold bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30">--</span>
+            </div>
+            <div id="modalAdminRole" class="text-xs text-slate-300">--</div>
+          </div>
+        </div>
+        <p class="text-[11px] text-cyan-300/80 mt-2 italic">
+          ℹ️ Your officer name and badge ID will be permanently stamped on this dispatch record, visible to both the patient and executive audit logs.
+        </p>
+      </div>
+
+      <!-- Patient & Emergency Summary -->
+      <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+        <div>
+          <span class="text-slate-400 block text-[10px] uppercase">Patient Name:</span>
+          <span id="modalPatientName" class="font-bold text-white text-sm">--</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px] uppercase">Phone:</span>
+          <span id="modalPatientPhone" class="font-bold text-white">--</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px] uppercase">Severity / Vitals:</span>
+          <span id="modalSeverityBadge" class="font-bold text-rose-400">--</span>
+        </div>
+        <div class="col-span-2 sm:col-span-3">
+          <span class="text-slate-400 block text-[10px] uppercase">Pickup Location:</span>
+          <span id="modalPickupLocation" class="font-medium text-slate-200">--</span>
+        </div>
+        <div class="col-span-2 sm:col-span-3">
+          <span class="text-slate-400 block text-[10px] uppercase">Destination Hospital:</span>
+          <span id="modalHospital" class="font-bold text-cyan-300">--</span>
+        </div>
+      </div>
+
+      <!-- Select Available Ambulance -->
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-2">Select Available Ambulance in <span class="current-city-label text-rose-400">Delhi NCR</span>:</label>
+        <div id="modalAmbulanceList" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-slate-800 flex items-center justify-end space-x-3">
+        <button onclick="document.getElementById('assignmentModal').close()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition">
+          Cancel
+        </button>
+        <button id="confirmAssignmentBtn" onclick="adminApp.executeAssignment()" class="px-6 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white shadow-lg shadow-rose-600/20 transition flex items-center space-x-1.5">
+          <span>🚨</span>
+          <span>Confirm & Record Assignment</span>
+        </button>
+      </div>
+
+    </div>
+  </dialog>
+
+  <!-- ADD AMBULANCE MODAL -->
+  <dialog id="addAmbulanceModal" class="p-0 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl text-slate-100 max-w-md w-full backdrop:bg-slate-950/80">
+    <div class="p-6 space-y-4">
+      <div class="flex items-start justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center space-x-2">
+          <span>🚑</span>
+          <span>Register New Ambulance Unit</span>
+        </h3>
+        <button onclick="document.getElementById('addAmbulanceModal').close()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+      </div>
+
+      <form onsubmit="adminApp.handleAddAmbulance(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Vehicle Registration #</label>
+          <input type="text" id="newVehicleNo" required placeholder="e.g. DL-01-EA-8890" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Unit Tier</label>
+            <select id="newUnitType" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs">
+              <option value="ALS">PulseCare Mobile ICU (Ventilator/ECG)</option>
+              <option value="BLS">PulseCare Rapid BLS (AED/Oxygen)</option>
+              <option value="NEO">PulseCare NeoCare (Neonatal ICU)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">City Hub</label>
+            <select id="newCityHub" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs">
+              <option value="DELHI">Delhi NCR</option>
+              <option value="BLR">Bengaluru</option>
+              <option value="MUM">Mumbai</option>
+              <option value="HYD">Hyderabad</option>
+              <option value="CCU">Kolkata</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Driver / Paramedic</label>
+            <input type="text" id="newDriverName" required placeholder="e.g. Surender Pal" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Driver Phone (+91)</label>
+            <input type="tel" id="newDriverPhone" required placeholder="98100 12345" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Base Standby Depot</label>
+          <input type="text" id="newBaseStation" required placeholder="e.g. Max Healthcare Standby Depot" class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs">
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="document.getElementById('addAmbulanceModal').close()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-xs text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold">Register Unit</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- CASE DOCKET MODAL -->
+  <dialog id="incidentModal" class="p-0 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl text-slate-100 max-w-xl w-full backdrop:bg-slate-950/80">
+    <div class="p-6 space-y-4">
+      <div class="flex items-start justify-between pb-3 border-b border-slate-800">
+        <div>
+          <span class="text-[10px] font-mono text-rose-400 uppercase">PulseCare India EMS • Case Docket</span>
+          <h3 class="text-base font-bold text-white">Emergency Dispatch & Attribution Record</h3>
+        </div>
+        <button onclick="document.getElementById('incidentModal').close()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+      </div>
+
+      <div id="incidentDocketContent" class="space-y-4 text-xs font-mono bg-slate-950 p-4 rounded-xl border border-slate-800">
+        <!-- Populated dynamically -->
+      </div>
+
+      <div class="pt-2 flex justify-end space-x-2">
+        <button onclick="window.print()" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-white flex items-center space-x-1">
+          <span>🖨️</span>
+          <span>Print Docket</span>
+        </button>
+        <button onclick="document.getElementById('incidentModal').close()" class="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold">
+          Close
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Leaflet JS CDN -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Admin Application Controller Script -->
+  <script>
+    class AdminApp {
+      constructor() {
+        this.officer = PulseCare.getCurrentAdmin();
+        this.activeCity = PulseCare.getActiveCity();
+        this.selectedAssignRequestId = null;
+        this.selectedAmbulanceForAssign = null;
+        this.map = null;
+        this.mapMarkers = [];
+        this.radarLayer = null;
+        this.isRadarActive = false;
+        this.currentWeather = null;
+
+        this.initUI();
+        this.initMap();
+        this.loadCityWeather();
+        this.listenForStorageUpdates();
+      }
+
+      initUI() {
+        // Display Officer Details
+        document.getElementById('officerNameDisplay').textContent = this.officer.name;
+        document.getElementById('officerIdDisplay').textContent = this.officer.id;
+        document.getElementById('officerAvatar').textContent = this.officer.avatar || 'SK';
+        document.getElementById('dutyOfficerName').textContent = this.officer.name;
+        document.getElementById('dutyOfficerRole').textContent = this.officer.role;
+        document.getElementById('dutyOfficerBadge').textContent = this.officer.badge;
+
+        // Set City
+        document.getElementById('adminCitySelector').value = this.activeCity;
+        document.querySelectorAll('.current-city-label').forEach(el => el.textContent = CITIES[this.activeCity].name);
+
+        this.renderPendingRequests();
+        this.renderFleetGrid();
+        this.renderHospitalGrid();
+        this.renderAuditTable();
+        this.renderStats();
+        this.populateAdminFilters();
+      }
+
+      switchTab(tabKey) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+        document.querySelectorAll('.nav-tab').forEach(t => {
+          t.classList.remove('active', 'bg-rose-600', 'text-white');
+          t.classList.add('text-slate-300');
+        });
+
+        const targetPanel = document.getElementById(`panel-${tabKey}`);
+        const targetTab = document.getElementById(`tab-${tabKey}`);
+        if (targetPanel) targetPanel.classList.remove('hidden');
+        if (targetTab) {
+          targetTab.classList.add('active', 'bg-rose-600', 'text-white');
+          targetTab.classList.remove('text-slate-300');
+        }
+
+        if (tabKey === 'map' && this.map) {
+          setTimeout(() => this.map.invalidateSize(), 200);
+        }
+      }
+
+      switchCity(cityKey) {
+        this.activeCity = cityKey;
+        PulseCare.setActiveCity(cityKey);
+        document.querySelectorAll('.current-city-label').forEach(el => el.textContent = CITIES[cityKey].name);
+        
+        this.renderPendingRequests();
+        this.renderFleetGrid();
+        this.renderHospitalGrid();
+        this.renderStats();
+        this.loadCityWeather();
+
+        if (this.map) {
+          const c = CITIES[cityKey];
+          this.map.flyTo(c.center, c.zoom);
+          setTimeout(() => this.updateMapMarkers(), 400);
+        }
+      }
+
+      renderPendingRequests() {
+        const container = document.getElementById('pendingRequestsContainer');
+        const badge = document.getElementById('pendingBadge');
+        const requests = PulseCare.getRequests();
+        const pending = requests.filter(r => r.status === 'PENDING');
+
+        badge.textContent = pending.length;
+        badge.classList.toggle('hidden', pending.length === 0);
+
+        if (pending.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-10 text-slate-500">
+              <div class="text-2xl mb-2">✨</div>
+              <div class="text-sm font-semibold">No Pending Emergency Calls</div>
+              <div class="text-xs text-slate-500 mt-1">All incoming dispatch requests have been allocated ambulances.</div>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = pending.map(req => {
+          const isCritical = req.severity === 'CRITICAL';
+          const v = req.vitals || { spo2: 98, pulse: 80 };
+          return `
+            <div class="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-slate-950/60 transition">
+              <div class="space-y-1.5">
+                <div class="flex items-center space-x-2">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isCritical ? 'bg-rose-600 text-white animate-pulse' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
+                    ${req.severity} PRIORITY
+                  </span>
+                  <span class="px-2 py-0.2 rounded text-[10px] font-bold bg-slate-800 text-slate-300 font-mono">${req.city || this.activeCity}</span>
+                  <span class="text-xs font-mono font-bold text-slate-400">${req.id}</span>
+                  <span class="text-xs text-slate-500">• ${new Date(req.requestedAt).toLocaleTimeString()}</span>
+                </div>
+                <div class="text-sm font-bold text-white flex items-center space-x-2">
+                  <span>${req.patientName}</span>
+                  <span class="text-xs font-normal text-slate-400">(${req.patientPhone})</span>
+                </div>
+                <div class="text-xs text-slate-300">
+                  <strong class="text-rose-400">Category:</strong> ${req.emergencyType} | <span class="text-cyan-300">Hospital: ${req.destinationHospital}</span>
+                </div>
+                <div class="text-xs text-slate-400 flex items-center space-x-3">
+                  <span>📍 ${req.pickupLocation}</span>
+                  <span class="text-rose-300 font-mono">SpO2: ${v.spo2}%</span>
+                  <span class="text-emerald-300 font-mono">Pulse: ${v.pulse}</span>
+                </div>
+                ${req.notes ? `<div class="text-[11px] text-slate-400 italic bg-slate-950 px-2 py-1 rounded border border-slate-800">"${req.notes}"</div>` : ''}
+              </div>
+
+              <!-- Action Button to Assign Ambulance -->
+              <div class="flex-shrink-0 w-full md:w-auto">
+                <button onclick="adminApp.openAssignmentModal('${req.id}')" class="w-full md:w-auto px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/20 transition flex items-center justify-center space-x-2">
+                  <span>🚑</span>
+                  <span>Assign Ambulance</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      openAssignmentModal(requestId) {
+        const requests = PulseCare.getRequests();
+        const req = requests.find(r => r.id === requestId);
+        if (!req) return;
+
+        this.selectedAssignRequestId = requestId;
+        this.selectedAmbulanceForAssign = null;
+
+        // Populate Officer Attribution Box in Modal with Current Logged-In Officer
+        document.getElementById('modalAdminName').textContent = this.officer.name;
+        document.getElementById('modalAdminBadge').textContent = this.officer.id;
+        document.getElementById('modalAdminRole').textContent = `${this.officer.role} • ${this.officer.shift}`;
+
+        document.getElementById('modalPatientName').textContent = req.patientName;
+        document.getElementById('modalPatientPhone').textContent = req.patientPhone;
+        document.getElementById('modalSeverityBadge').textContent = `${req.severity} (${req.emergencyType}) • SpO2: ${req.vitals?.spo2 || 98}%`;
+        document.getElementById('modalPickupLocation').textContent = req.pickupLocation;
+        document.getElementById('modalHospital').textContent = req.destinationHospital;
+
+        const ambulances = PulseCare.getAmbulances();
+        const targetCity = req.city || this.activeCity;
+        const available = ambulances.filter(a => a.status === 'AVAILABLE' && (a.city === targetCity || a.city === this.activeCity));
+        const listContainer = document.getElementById('modalAmbulanceList');
+
+        if (available.length === 0) {
+          listContainer.innerHTML = `
+            <div class="p-4 rounded-xl bg-rose-950/30 border border-rose-500/30 text-center text-xs text-rose-300">
+              ⚠️ No units in ${targetCity} currently AVAILABLE.
+            </div>
+          `;
+          document.getElementById('confirmAssignmentBtn').disabled = true;
+        } else {
+          document.getElementById('confirmAssignmentBtn').disabled = false;
+          listContainer.innerHTML = available.map((amb, idx) => {
+            return `
+              <label class="block p-3 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-900 cursor-pointer transition">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-3">
+                    <input type="radio" name="assignRadio" value="${amb.id}" ${idx === 0 ? 'checked' : ''} onchange="adminApp.selectedAmbulanceForAssign='${amb.id}'" class="text-rose-600 focus:ring-rose-500">
+                    <div>
+                      <div class="text-xs font-bold text-white font-mono text-cyan-300">${amb.vehicleNo} <span class="text-slate-400 font-sans font-normal text-[10px]">(${amb.type})</span></div>
+                      <div class="text-[11px] text-slate-300">Paramedic: <strong>${amb.driverName}</strong> (${amb.driverPhone})</div>
+                      <div class="text-[10px] text-slate-400">Depot: ${amb.baseStation}</div>
+                    </div>
+                  </div>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Ready</span>
+                </div>
+              </label>
+            `;
+          }).join('');
+          this.selectedAmbulanceForAssign = available[0].id;
+        }
+
+        document.getElementById('assignmentModal').showModal();
+      }
+
+      // EXECUTES ASSIGNMENT - BINDS LOGGED IN OFFICER'S NAME
+      executeAssignment() {
+        if (!this.selectedAssignRequestId || !this.selectedAmbulanceForAssign) {
+          alert('Please select an ambulance to assign.');
+          return;
+        }
+
+        const requests = PulseCare.getRequests();
+        const req = requests.find(r => r.id === this.selectedAssignRequestId);
+        const ambulances = PulseCare.getAmbulances();
+        const amb = ambulances.find(a => a.id === this.selectedAmbulanceForAssign);
+
+        if (!req || !amb) return;
+
+        const timestamp = new Date().toISOString();
+
+        // 1. Stamp assignment with the logged in officer's name & details
+        req.status = 'DISPATCHED';
+        req.assignedAmbulanceId = amb.id;
+        req.assignedAmbulanceNo = amb.vehicleNo;
+        req.assignedDriverName = amb.driverName;
+        req.assignedDriverPhone = amb.driverPhone;
+
+        // THE CORE REQUIREMENT: Stamping logged-in admin identity
+        req.assignedBy = {
+          adminId: this.officer.id,
+          adminName: this.officer.name,
+          adminRole: this.officer.role,
+          adminBadge: this.officer.badge,
+          assignedAt: timestamp,
+          notes: `Authorized deployment of ${amb.vehicleNo} via PulseCare Operations Desk.`
+        };
+
+        amb.status = 'DISPATCHED';
+
+        // 2. Add to Audit Log
+        PulseCare.saveAuditLogEntry({
+          id: 'LOG-' + Math.floor(Math.random() * 89999 + 10000),
+          requestId: req.id,
+          patientName: req.patientName,
+          city: req.city || this.activeCity,
+          ambulanceId: amb.id,
+          ambulanceNo: amb.vehicleNo,
+          adminId: this.officer.id,
+          adminName: this.officer.name,
+          adminRole: this.officer.role,
+          adminBadge: this.officer.badge,
+          assignedAt: timestamp,
+          status: 'DISPATCHED',
+          emergencyType: req.emergencyType,
+          severity: req.severity,
+          hospital: req.destinationHospital,
+          scheme: req.scheme
+        });
+
+        PulseCare.saveRequests(requests);
+        PulseCare.saveAmbulances(ambulances);
+
+        document.getElementById('assignmentModal').close();
+        PulseCare.playChime();
+        PulseCare.showToast(`Unit ${amb.vehicleNo} assigned by Officer ${this.officer.name}!`, 'success');
+
+        this.renderPendingRequests();
+        this.renderFleetGrid();
+        this.renderAuditTable();
+        this.renderStats();
+        this.updateMapMarkers();
+      }
+
+      renderFleetGrid() {
+        const container = document.getElementById('fleetGridContainer');
+        const filter = document.getElementById('fleetStatusFilter')?.value || 'ALL';
+        let ambulances = PulseCare.getAmbulances().filter(a => a.city === this.activeCity);
+
+        if (filter !== 'ALL') ambulances = ambulances.filter(a => a.status === filter);
+
+        const statusBadgeMap = {
+          AVAILABLE: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+          DISPATCHED: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+          ON_SCENE: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+          MAINTENANCE: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+          OUT_OF_SERVICE: 'bg-slate-800 text-slate-400 border-slate-700'
+        };
+
+        if (ambulances.length === 0) {
+          container.innerHTML = `
+            <div class="col-span-full p-8 text-center bg-slate-950/60 rounded-xl border border-slate-800 text-slate-400">
+              <span class="text-2xl block mb-2">🚑</span>
+              <p class="text-xs font-semibold">No ambulances found for this filter in ${CITIES[this.activeCity]?.name || this.activeCity}.</p>
+              <button onclick="adminApp.openAddAmbulanceModal()" class="mt-3 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition">
+                Register New Ambulance Unit
+              </button>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = ambulances.map(amb => `
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow flex flex-col justify-between space-y-3 hover:border-slate-700 transition">
+            <div>
+              <div class="flex items-start justify-between">
+                <div>
+                  <span class="text-xs font-bold text-white block font-mono text-cyan-300">${amb.vehicleNo}</span>
+                  <span class="text-[10px] text-slate-400 font-mono">${amb.type} - ${amb.typeName ? amb.typeName.split('(')[0] : 'Mobile ICU'}</span>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${statusBadgeMap[amb.status] || 'bg-slate-800 text-slate-400 border-slate-700'}">
+                  ${amb.status}
+                </span>
+              </div>
+
+              <div class="mt-3 space-y-1 text-xs text-slate-300">
+                <div>👨‍✈️ Paramedic: <strong class="text-white">${amb.driverName}</strong></div>
+                <div>📞 Phone: <a href="tel:${amb.driverPhone}" class="text-cyan-400 hover:underline font-mono">${amb.driverPhone}</a></div>
+                <div>📍 Depot: <span class="text-slate-400">${amb.baseStation}</span></div>
+              </div>
+            </div>
+
+            <!-- CONTROLS: STATUS CHANGER & DELETE AMBULANCE -->
+            <div class="pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div class="flex items-center space-x-1.5">
+                <span class="text-[10px] text-slate-400">Status:</span>
+                <select onchange="adminApp.changeAmbulanceStatus('${amb.id}', this.value)" class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 hover:border-slate-600 text-xs font-semibold text-slate-200 cursor-pointer focus:ring-1 focus:ring-rose-500">
+                  <option value="AVAILABLE" ${amb.status === 'AVAILABLE' ? 'selected' : ''}>🟢 Available</option>
+                  <option value="DISPATCHED" ${amb.status === 'DISPATCHED' ? 'selected' : ''}>🟡 Dispatched</option>
+                  <option value="ON_SCENE" ${amb.status === 'ON_SCENE' ? 'selected' : ''}>🟣 On Scene</option>
+                  <option value="MAINTENANCE" ${amb.status === 'MAINTENANCE' ? 'selected' : ''}>🟠 Maintenance</option>
+                  <option value="OUT_OF_SERVICE" ${amb.status === 'OUT_OF_SERVICE' ? 'selected' : ''}>⚪ Out of Service</option>
+                </select>
+              </div>
+              <button onclick="adminApp.deleteAmbulance('${amb.id}', '${amb.vehicleNo}')" title="Delete unit from active fleet" class="px-2.5 py-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 hover:text-rose-300 border border-rose-800/50 text-xs font-semibold transition flex items-center space-x-1 cursor-pointer">
+                <span>🗑️</span>
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      changeAmbulanceStatus(ambId, newStatus) {
+        const success = PulseCare.updateAmbulanceStatus(ambId, newStatus);
+        if (success) {
+          PulseCare.showToast(`Unit status updated to ${newStatus}`, 'info');
+          this.renderFleetGrid();
+          this.renderStats();
+          this.updateMapMarkers();
+        }
+      }
+
+      deleteAmbulance(ambId, vehicleNo) {
+        const confirmed = confirm(`Are you sure you want to remove ambulance ${vehicleNo} from the active fleet roster?\n\nThis will permanently delete the vehicle from PulseCare operations.`);
+        if (!confirmed) return;
+
+        const success = PulseCare.deleteAmbulance(ambId);
+        if (success) {
+          PulseCare.playChime();
+          PulseCare.showToast(`Unit ${vehicleNo} deleted from fleet roster.`, 'success');
+          this.renderFleetGrid();
+          this.renderStats();
+          this.updateMapMarkers();
+        } else {
+          PulseCare.showToast(`Unable to delete unit ${vehicleNo}.`, 'error');
+        }
+      }
+
+      renderHospitalGrid() {
+        const container = document.getElementById('hospitalGridContainer');
+        const cityData = CITIES[this.activeCity];
+        container.innerHTML = cityData.hospitals.map(h => `
+          <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 shadow space-y-3">
+            <div class="flex items-start justify-between">
+              <div>
+                <span class="text-sm font-bold text-white block">${h.name}</span>
+                <span class="text-[11px] text-cyan-400 font-mono">${h.type}</span>
+              </div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                Oxygen ${h.oxyStatus}
+              </span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-center">
+              <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase">ICU Beds</div>
+                <div class="text-xl font-black text-emerald-400 font-mono">${h.icuBeds} Free</div>
+              </div>
+              <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase">Ventilators</div>
+                <div class="text-xl font-black text-cyan-300 font-mono">${h.ventBeds} Ready</div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      refreshHospitalBedData() {
+        PulseCare.playChime();
+        PulseCare.showToast('Updated bed counts from hospital network.', 'info');
+        this.renderHospitalGrid();
+      }
+
+      renderAuditTable() {
+        const tbody = document.getElementById('auditTableBody');
+        const search = document.getElementById('auditSearchInput')?.value.toLowerCase() || '';
+        const adminFilter = document.getElementById('auditAdminFilter')?.value || 'ALL';
+        const statusFilter = document.getElementById('auditStatusFilter')?.value || 'ALL';
+
+        let requests = PulseCare.getRequests().filter(r => r.assignedBy);
+
+        if (search) {
+          requests = requests.filter(r => 
+            r.patientName.toLowerCase().includes(search) ||
+            r.id.toLowerCase().includes(search) ||
+            r.assignedBy.adminName.toLowerCase().includes(search) ||
+            (r.assignedAmbulanceNo && r.assignedAmbulanceNo.toLowerCase().includes(search))
+          );
+        }
+
+        if (adminFilter !== 'ALL') {
+          requests = requests.filter(r => r.assignedBy.adminName === adminFilter);
+        }
+
+        if (statusFilter !== 'ALL') {
+          requests = requests.filter(r => r.status === statusFilter);
+        }
+
+        tbody.innerHTML = requests.map(r => {
+          const assigned = r.assignedBy;
+          const v = r.vitals || { spo2: 98, pulse: 80 };
+          return `
+            <tr class="hover:bg-slate-950/60 transition">
+              <td class="px-4 py-3 font-mono">
+                <div class="font-bold text-white">${r.id}</div>
+                <div class="text-[10px] text-slate-400">${new Date(r.requestedAt).toLocaleTimeString()}</div>
+              </td>
+              <td class="px-4 py-3">
+                <div class="font-bold text-white">${r.patientName}</div>
+                <div class="text-[11px] text-slate-400">${r.city} • ${r.pickupLocation}</div>
+              </td>
+              <td class="px-4 py-3">
+                <span class="text-xs text-slate-300 block">${r.emergencyType}</span>
+                <div class="text-[10px] text-slate-400 mt-0.5">
+                  <span class="text-rose-400 font-bold">${r.severity}</span> | SpO2: <span class="font-mono text-cyan-300">${v.spo2}%</span>
+                </div>
+              </td>
+              <td class="px-4 py-3 font-mono">
+                <div class="font-bold text-cyan-300">${r.assignedAmbulanceNo}</div>
+                <div class="text-[11px] text-slate-400 font-sans">Driver: ${r.assignedDriverName}</div>
+              </td>
+
+              <!-- CORE REQUIREMENT: DISPLAYING THE ADMIN WHO ASSIGNED -->
+              <td class="px-4 py-3">
+                <div class="inline-flex items-center space-x-2 bg-gradient-to-r from-cyan-950/70 to-blue-950/70 border border-cyan-500/30 px-3 py-1.5 rounded-xl shadow-sm">
+                  <span class="text-sm">🛡️</span>
+                  <div>
+                    <div class="font-bold text-white text-xs flex items-center space-x-1">
+                      <span>${assigned.adminName}</span>
+                      <span class="text-[9px] bg-cyan-500/20 text-cyan-300 px-1 rounded font-mono font-bold">${assigned.adminId}</span>
+                    </div>
+                    <div class="text-[10px] text-cyan-300/90">${assigned.adminRole}</div>
+                    <div class="text-[9px] text-slate-400 font-mono mt-0.5">Assigned: ${new Date(assigned.assignedAt).toLocaleTimeString()}</div>
+                  </div>
+                </div>
+              </td>
+
+              <td class="px-4 py-3">
+                <div class="text-xs font-semibold text-slate-200">${r.destinationHospital.split(',')[0]}</div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${r.status === 'COMPLETED' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'}">
+                  ${r.status}
+                </span>
+              </td>
+
+              <td class="px-4 py-3 text-right">
+                <button onclick="adminApp.viewIncidentDocket('${r.id}')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-cyan-400 border border-slate-700">
+                  Docket &rarr;
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      populateAdminFilters() {
+        const admins = PulseCare.getAdmins();
+        const select = document.getElementById('auditAdminFilter');
+        if (!select) return;
+        select.innerHTML = '<option value="ALL">All Officers</option>' + 
+          admins.map(a => `<option value="${a.name}">${a.name} (${a.id})</option>`).join('');
+      }
+
+      viewIncidentDocket(requestId) {
+        const requests = PulseCare.getRequests();
+        const req = requests.find(r => r.id === requestId);
+        if (!req || !req.assignedBy) return;
+
+        const v = req.vitals || { spo2: 98, pulse: 80, conscious: 'Alert', bloodGroup: 'Unknown' };
+        document.getElementById('incidentDocketContent').innerHTML = `
+          <div class="border-b border-slate-700 pb-3">
+            <div class="text-rose-400 font-bold">PULSECARE INDIA • PRIVATE EMERGENCY OPERATIONS</div>
+            <div class="text-base font-bold text-white">INCIDENT RECORD: ${req.id}</div>
+            <div class="text-slate-400 text-[11px]">Command Hub: ${CITIES[req.city || this.activeCity]?.name} • Date: ${new Date(req.requestedAt).toLocaleString()}</div>
+          </div>
+          <div class="grid grid-cols-2 gap-4 py-2 border-b border-slate-700">
+            <div>
+              <span class="text-slate-400 text-[10px] uppercase">Patient Profile:</span>
+              <div class="font-bold text-white text-sm">${req.patientName}</div>
+              <div>Mobile: ${req.patientPhone}</div>
+              <div>Category: ${req.emergencyType}</div>
+              <div class="text-cyan-300">SpO2: ${v.spo2}% | Pulse: ${v.pulse} bpm</div>
+            </div>
+            <div>
+              <span class="text-slate-400 text-[10px] uppercase">Route:</span>
+              <div>Pickup: ${req.pickupLocation}</div>
+              <div class="font-bold text-white">Hospital: ${req.destinationHospital}</div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4 py-2 border-b border-slate-700">
+            <div>
+              <span class="text-slate-400 text-[10px] uppercase">Ambulance Unit:</span>
+              <div class="font-bold text-cyan-300">${req.assignedAmbulanceNo}</div>
+              <div>Driver: ${req.assignedDriverName} (${req.assignedDriverPhone})</div>
+            </div>
+            <div class="bg-cyan-950/40 p-2.5 rounded-lg border border-cyan-500/30">
+              <span class="text-cyan-400 text-[10px] uppercase font-bold">AUTHORIZING OFFICER:</span>
+              <div class="font-bold text-white text-sm">${req.assignedBy.adminName}</div>
+              <div class="text-slate-300">ID: ${req.assignedBy.adminId}</div>
+              <div class="text-slate-300">${req.assignedBy.adminRole}</div>
+              <div class="text-cyan-300 mt-1 font-mono">${new Date(req.assignedBy.assignedAt).toLocaleString()}</div>
+            </div>
+          </div>
+        `;
+        document.getElementById('incidentModal').showModal();
+      }
+
+      exportAuditCSV() {
+        const requests = PulseCare.getRequests().filter(r => r.assignedBy);
+        let csv = 'Request_ID,Patient_Name,Phone,City,Emergency_Type,Severity,Assigned_Ambulance,Driver,Admin_Name_Who_Assigned,Admin_ID,Assignment_Timestamp,Hospital,Status\n';
+        requests.forEach(r => {
+          csv += `"${r.id}","${r.patientName}","${r.patientPhone}","${r.city}","${r.emergencyType}","${r.severity}","${r.assignedAmbulanceNo}","${r.assignedDriverName}","${r.assignedBy.adminName}","${r.assignedBy.adminId}","${r.assignedBy.assignedAt}","${r.destinationHospital}","${r.status}"\n`;
+        });
+        const encoded = encodeURI('data:text/csv;charset=utf-8,' + csv);
+        const link = document.createElement('a');
+        link.href = encoded;
+        link.download = `PulseCare_Audit_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+      }
+
+      exportAuditJSON() {
+        const requests = PulseCare.getRequests().filter(r => r.assignedBy);
+        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(requests, null, 2));
+        const link = document.createElement('a');
+        link.href = dataStr;
+        link.download = `PulseCare_Audit_${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+      }
+
+      openAddAmbulanceModal() {
+        document.getElementById('newCityHub').value = this.activeCity;
+        document.getElementById('addAmbulanceModal').showModal();
+      }
+
+      handleAddAmbulance(e) {
+        e.preventDefault();
+        const vehicleNo = document.getElementById('newVehicleNo').value.trim();
+        const type = document.getElementById('newUnitType').value;
+        const city = document.getElementById('newCityHub').value;
+        const driver = document.getElementById('newDriverName').value.trim();
+        const phoneRaw = document.getElementById('newDriverPhone').value.trim();
+        const base = document.getElementById('newBaseStation').value.trim();
+
+        const ambulances = PulseCare.getAmbulances();
+        ambulances.push({
+          id: 'PULSE-AMB-' + Math.floor(Math.random() * 899 + 100),
+          vehicleNo: vehicleNo,
+          type: type,
+          typeName: type === 'ALS' ? 'PulseCare Mobile ICU' : (type === 'NEO' ? 'PulseCare NeoCare Unit' : 'PulseCare Rapid BLS'),
+          city: city,
+          driverName: driver,
+          driverPhone: `+91 ${phoneRaw}`,
+          status: 'AVAILABLE',
+          baseStation: base,
+          lat: CITIES[city].center[0] + (Math.random() - 0.5) * 0.04,
+          lng: CITIES[city].center[1] + (Math.random() - 0.5) * 0.04,
+          equipment: ['Oxygen Supply', 'AED', 'Telemetry Link']
+        });
+
+        PulseCare.saveAmbulances(ambulances);
+        document.getElementById('addAmbulanceModal').close();
+        PulseCare.showToast(`Unit ${vehicleNo} added to fleet roster!`, 'success');
+        this.renderFleetGrid();
+        this.renderStats();
+      }
+
+      renderStats() {
+        const ambulances = PulseCare.getAmbulances().filter(a => a.city === this.activeCity);
+        const requests = PulseCare.getRequests().filter(r => r.city === this.activeCity);
+
+        document.getElementById('statTotalFleet').textContent = ambulances.length;
+        document.getElementById('statAvailableFleet').textContent = ambulances.filter(a => a.status === 'AVAILABLE').length;
+        document.getElementById('statActiveDispatches').textContent = requests.filter(r => r.status === 'DISPATCHED' || r.status === 'ON_SCENE').length;
+        document.getElementById('statPendingRequests').textContent = requests.filter(r => r.status === 'PENDING').length;
+
+        // Assignments made specifically by current officer
+        const myAssignments = PulseCare.getRequests().filter(r => r.assignedBy && r.assignedBy.adminId === this.officer.id).length;
+        document.getElementById('statOfficerAssignments').textContent = myAssignments;
+      }
+
+      initMap() {
+        const mapDiv = document.getElementById('fleetMap');
+        if (!mapDiv || typeof L === 'undefined') return;
+        try {
+          const c = CITIES[this.activeCity];
+          this.map = L.map('fleetMap').setView(c.center, c.zoom);
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(this.map);
+          this.updateMapMarkers();
+        } catch (e) {}
+      }
+
+      updateMapMarkers() {
+        if (!this.map || typeof L === 'undefined') return;
+        this.mapMarkers.forEach(m => this.map.removeLayer(m));
+        this.mapMarkers = [];
+
+        const ambulances = PulseCare.getAmbulances().filter(a => a.city === this.activeCity);
+        const requests = PulseCare.getRequests().filter(r => r.city === this.activeCity && r.status !== 'COMPLETED');
+
+        ambulances.forEach(amb => {
+          if (amb.status === 'OUT_OF_SERVICE') return;
+          const statusColor = amb.status === 'AVAILABLE' ? 'text-emerald-400' : (amb.status === 'MAINTENANCE' ? 'text-orange-400' : 'text-amber-400');
+          const customIcon = L.divIcon({
+            html: `<div class="custom-map-icon ${statusColor}">🚑</div>`,
+            className: 'custom-div-icon',
+            iconSize: [28, 28]
+          });
+          const m = L.marker([amb.lat, amb.lng], { icon: customIcon }).addTo(this.map);
+          m.bindPopup(`<b>${amb.vehicleNo}</b><br>${amb.type} • Status: ${amb.status}`);
+          this.mapMarkers.push(m);
+        });
+
+        requests.forEach(req => {
+          const customIcon = L.divIcon({
+            html: `<div class="custom-map-icon text-rose-500 animate-pulse">🚨</div>`,
+            className: 'custom-div-icon',
+            iconSize: [28, 28]
+          });
+          const m = L.marker([req.lat, req.lng], { icon: customIcon }).addTo(this.map);
+          m.bindPopup(`<b>${req.patientName}</b><br>${req.emergencyType}`);
+          this.mapMarkers.push(m);
+        });
+      }
+
+      async loadCityWeather(forceRefresh = false) {
+        try {
+          const cityData = CITIES[this.activeCity] || CITIES.DELHI;
+          const [lat, lng] = cityData.center;
+
+          if (forceRefresh && PulseCareWeather.cache) {
+            const key = `${parseFloat(lat).toFixed(2)}_${parseFloat(lng).toFixed(2)}`;
+            delete PulseCareWeather.cache[key];
+          }
+
+          const w = await PulseCareWeather.getWeather(lat, lng, this.activeCity);
+          this.currentWeather = w;
+
+          // Update Bar UI
+          const elCity = document.getElementById('adminWeatherCity');
+          const elTemp = document.getElementById('adminWeatherTemp');
+          const elCond = document.getElementById('adminWeatherCondition');
+          const elIcon = document.getElementById('adminWeatherIcon');
+          const elHum = document.getElementById('adminWeatherHumidity');
+          const elWind = document.getElementById('adminWeatherWind');
+          const elPrecip = document.getElementById('adminWeatherPrecip');
+          const elRoadStatus = document.getElementById('adminRoadStatusText');
+          const elRoadBadge = document.getElementById('adminRoadStatusBadge');
+          const elRoadIcon = document.getElementById('adminRoadStatusIcon');
+
+          if (elCity) elCity.textContent = cityData.name;
+          if (elTemp) elTemp.textContent = `${w.temp}°C`;
+          if (elCond) elCond.textContent = w.condition;
+          if (elIcon) elIcon.textContent = w.icon;
+          if (elHum) elHum.textContent = `${w.humidity}%`;
+          if (elWind) elWind.textContent = `${w.windSpeed} km/h`;
+          if (elPrecip) elPrecip.textContent = `🌧️ Precip: ${w.precipitation} mm`;
+
+          if (elRoadStatus) elRoadStatus.textContent = w.roadStatus;
+          if (elRoadBadge) {
+            elRoadBadge.className = `px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center space-x-1.5 ${w.roadBadgeClass}`;
+          }
+          if (elRoadIcon) {
+            elRoadIcon.textContent = w.hazardLevel === 'OPTIMAL' ? '🟢' : (w.hazardLevel === 'CAUTION' ? '🟡' : (w.hazardLevel === 'HIGH' ? '🟠' : '🔴'));
+          }
+
+          // Update Map Floating HUD
+          const hudCity = document.getElementById('hudCityBadge');
+          const hudTemp = document.getElementById('hudTempCondition');
+          const hudAdvisory = document.getElementById('hudTransitAdvisory');
+
+          if (hudCity) hudCity.textContent = this.activeCity;
+          if (hudTemp) hudTemp.textContent = `${w.temp}°C ${w.icon} ${w.condition}`;
+          if (hudAdvisory) {
+            hudAdvisory.textContent = `Road Status: ${w.roadStatus}. ${w.etaDelayMinutes > 0 ? `Transit ETA penalty: +${w.etaDelayMinutes}m due to weather.` : 'Standard priority transit corridors.'}`;
+          }
+        } catch (err) {
+          console.warn('Failed to load city weather:', err);
+        }
+      }
+
+      async toggleRadarOverlay() {
+        if (!this.map || typeof L === 'undefined') {
+          PulseCare.showToast('Map is initializing, please wait...', 'info');
+          return;
+        }
+
+        const btn = document.getElementById('btnToggleRadar');
+        const stateText = document.getElementById('radarStateText');
+        const liveDot = document.getElementById('radarActiveDot');
+
+        if (this.isRadarActive) {
+          if (this.radarLayer) {
+            this.map.removeLayer(this.radarLayer);
+            this.radarLayer = null;
+          }
+          this.isRadarActive = false;
+          if (btn) btn.classList.remove('weather-radar-active');
+          if (stateText) stateText.textContent = 'OFF';
+          if (liveDot) liveDot.classList.add('hidden');
+          PulseCare.showToast('Precipitation radar overlay disabled', 'info');
+        } else {
+          try {
+            PulseCare.showToast('Connecting to live precipitation radar...', 'info');
+            const radarUrl = await PulseCareWeather.getRadarTileUrl();
+            this.radarLayer = L.tileLayer(radarUrl, {
+              opacity: 0.65,
+              zIndex: 10,
+              maxZoom: 19
+            }).addTo(this.map);
+            this.isRadarActive = true;
+            if (btn) btn.classList.add('weather-radar-active');
+            if (stateText) stateText.textContent = 'LIVE ON';
+            if (liveDot) liveDot.classList.remove('hidden');
+            PulseCare.showToast('Live precipitation radar overlay active', 'success');
+          } catch (e) {
+            PulseCare.showToast('Radar tiles currently unavailable', 'error');
+          }
+        }
+      }
+
+      listenForStorageUpdates() {
+        const refreshAdminState = () => {
+          this.renderPendingRequests();
+          this.renderFleetGrid();
+          this.renderAuditTable();
+          this.renderStats();
+          this.updateMapMarkers();
+        };
+
+        window.addEventListener('storage', (e) => {
+          if (e.key === 'pulsecare_requests' || e.key === 'pulsecare_ambulances') {
+            refreshAdminState();
+          }
+        });
+
+        // Periodic sync fallback for file:// browsing
+        setInterval(refreshAdminState, 2000);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      window.adminApp = new AdminApp();
+    });
+  </script>
+</body>
+</html>
