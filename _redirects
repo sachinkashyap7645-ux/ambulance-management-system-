@@ -1,0 +1,7 @@
+# Netlify Static Routing & Clean URLs for PulseCare Demo
+/admin         /admin.html         200
+/login         /login.html         200
+/presentation  /presentation.html  200
+/demo          /presentation.html  200
+/slides        /presentation.html  200
+/patient       /index.html         200
